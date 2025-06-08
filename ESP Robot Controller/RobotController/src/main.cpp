@@ -1,79 +1,122 @@
+#include <AccelStepper.h>
 #include <Arduino.h>
 
-#define STEP_PIN_1 18
-#define DIR_PIN_1 19
-#define EN_PIN_1   23
+// Motor pins
+#define DIR_PIN  19
+#define STEP_PIN 18
 
-#define STEP_PIN_2 21
-#define DIR_PIN_2 22
-#define EN_PIN_2   25
+// Limit switch pins
+#define LIMIT_MIN_PIN  14   // Start of ball screw
+#define LIMIT_MAX_PIN  27   // End of ball screw
 
-int stepCount = 200;          // Default value
-int stepDelay = 500;          // Default delay in microseconds
+#define CALIBRATION_SPEED 1000 // Speed during calibration
+#define CALIBRATION_ACCELERATION 500 // Acceleration during calibration
 
-void moveMotors(int steps, int delayMicros) {
-  for (int i = 0; i < steps; i++) {
-    digitalWrite(STEP_PIN_1, HIGH);
-    digitalWrite(STEP_PIN_2, HIGH);
-    delayMicroseconds(delayMicros);
-    digitalWrite(STEP_PIN_1, LOW);
-    digitalWrite(STEP_PIN_2, LOW);
-    delayMicroseconds(delayMicros);
-  }
-}
+void calibrateLimits();
 
+// Stepper config
+AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
+
+// Calibration
+long maxPosition = 0; // Will be determined via calibration
+
+// Slider target (can be set via serial or UI later)
+long targetPosition = 0;
+
+// Basic setup
 void setup() {
   Serial.begin(9600);
 
-  pinMode(STEP_PIN_1, OUTPUT);
-  pinMode(DIR_PIN_1, OUTPUT);
-  pinMode(EN_PIN_1, OUTPUT);
+  pinMode(LIMIT_MIN_PIN, INPUT_PULLDOWN);
+  pinMode(LIMIT_MAX_PIN, INPUT_PULLDOWN);
+  stepper.setEnablePin(23); // Enable pin for the stepper driver
+  stepper.setPinsInverted(false, false, true);  // Invert enable pin logic
+  stepper.enableOutputs();
+  stepper.setMaxSpeed(1000);
+  stepper.setAcceleration(500);
 
-  pinMode(STEP_PIN_2, OUTPUT);
-  pinMode(DIR_PIN_2, OUTPUT);
-  pinMode(EN_PIN_2, OUTPUT);
-
-  digitalWrite(EN_PIN_1, LOW);  // Enable drivers
-  digitalWrite(EN_PIN_2, LOW);
-
-  digitalWrite(DIR_PIN_1, HIGH); // Default direction
-  digitalWrite(DIR_PIN_2, HIGH);
-
-  Serial.println("Enter step count and delay in microseconds (e.g., 1000 500):");
+  Serial.println("Starting calibration...");
+  calibrateLimits();
+  Serial.println("Calibration complete.");
+  Serial.print("Max position: ");
+  Serial.println(maxPosition);
 }
 
 void loop() {
+  // Example: Set a target from 0 to maxPosition
   if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-    int spaceIndex = input.indexOf(' ');
-    if (spaceIndex > 0) {
-      stepCount = input.substring(0, spaceIndex).toInt();
-      stepDelay = input.substring(spaceIndex + 1).toInt();
-
-      Serial.print("Running ");
-      Serial.print(stepCount);
-      Serial.print(" steps with ");
-      Serial.print(stepDelay);
-      Serial.println("us delay.");
-
-      moveMotors(stepCount, stepDelay);
-
-      // Reverse direction
-      digitalWrite(DIR_PIN_1, LOW);
-      digitalWrite(DIR_PIN_2, LOW);
-      delay(1000);
-
-      moveMotors(stepCount, stepDelay);
-
-      // Reset
-      digitalWrite(DIR_PIN_1, HIGH);
-      digitalWrite(DIR_PIN_2, HIGH);
-      delay(1000);
-    } else {
-      Serial.println("Invalid input. Format: steps delayMicroseconds");
+    long pos = Serial.parseInt();
+    if (pos >= 0 && pos <= maxPosition) {
+      targetPosition = pos;
+      stepper.moveTo(targetPosition);
     }
   }
+
+  stepper.run();
 }
 
+// Move to the limit switch slowly until it triggers
+void calibrateLimits() {
+  // Move to MIN limit switch
+  stepper.setMaxSpeed(CALIBRATION_SPEED);
+  stepper.setAcceleration(CALIBRATION_ACCELERATION);
+  stepper.moveTo(-100000); // Move backward a lot
+
+  while (digitalRead(LIMIT_MIN_PIN) == LOW) {
+   //TODO: Remove this debug print in production
+    Serial.print("POS " );
+    Serial.print(stepper.currentPosition());
+    Serial.print(" SPEED " );
+    Serial.print(stepper.speed());
+    Serial.print(" ACC " );
+    Serial.println(stepper.acceleration());
+    stepper.run();
+  }
+
+  stepper.setCurrentPosition(0); // Set zero position
+
+  // STOP motor before reversing direction
+  stepper.stop();                  
+  stepper.setSpeed(0);
+  while (stepper.isRunning()) stepper.run();  // Ensure it fully stops
+  stepper.setCurrentPosition(0);              // Reset again if needed
+
+  // Set new motion toward MAX limit
+  stepper.setMaxSpeed(CALIBRATION_SPEED);
+  stepper.setAcceleration(CALIBRATION_ACCELERATION);  // Keep acceleration but reapply cleanly
+  stepper.moveTo(100000);        // Move forward a lot
+
+  while (digitalRead(LIMIT_MAX_PIN) == LOW) {
+    //TODO: Remove this debug print in production
+    Serial.print("POS " );
+    Serial.print(stepper.currentPosition());
+    Serial.print(" SPEED " );
+    Serial.print(stepper.speed());
+    Serial.print(" ACC " );
+    Serial.println(stepper.acceleration());
+    stepper.run();
+  }
+
+  maxPosition = stepper.currentPosition();
+
+    // STOP motor before reversing direction
+  stepper.stop();                  
+  stepper.setSpeed(0);
+    // Set new motion toward MAX limit
+  stepper.setMaxSpeed(CALIBRATION_SPEED);
+  stepper.setAcceleration(CALIBRATION_ACCELERATION);  // Keep acceleration but reapply cleanly
+
+  // Return to home
+  stepper.moveTo(0);
+  while (stepper.distanceToGo() != 0) {
+    //TODO: Remove this debug print in production
+    Serial.print("POS " );
+    Serial.print(stepper.currentPosition());
+    Serial.print(" SPEED " );
+    Serial.print(stepper.speed());
+    Serial.print(" ACC " );
+    Serial.println(stepper.acceleration());
+    stepper.run();
+  }
+}
 
