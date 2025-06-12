@@ -54,7 +54,7 @@ void setup() {
   HOR_Stepper.setMaxSpeed(1000);
   HOR_Stepper.setAcceleration(500);
 
-  VERT_Stepper.setEnablePin(HOR_ENABLE_PIN);
+  VERT_Stepper.setEnablePin(VERT_ENABLE_PIN);
   VERT_Stepper.setPinsInverted(false, false, true);
   VERT_Stepper.enableOutputs();
   VERT_Stepper.setMaxSpeed(1000);
