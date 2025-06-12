@@ -108,13 +108,30 @@ void loop() {
       }
       String command = input.substring(5);
       grabDrugs(command);
+    }else if (input == "TEST") {
+      Serial.println("testing");
+      HOR_Stepper.moveTo(HOR_maxPosition/2);
+      VERT_Stepper.moveTo(VERT_maxPosition/2);
+      while(HOR_Stepper.distanceToGo() != 0) {
+        HOR_Stepper.run();
+      }
+      while(VERT_Stepper.distanceToGo() != 0) {
+        VERT_Stepper.run();
+      }
+      //TODO: Change this for the real test
+    }else if (input.startsWith("GO")) {
+      if (!isCalibrated) {
+        Serial.println("ERROR: NOT_CALIBRATED");
+        return;
+      }
+      String command = input.substring(3);
+      
+      grabDrugs(command);
     }
   }
-
-  HOR_Stepper.run();
 }
 
-void moveToPosition(long pos) {
+void moveToPosition(long pos){
   HOR_Stepper.moveTo(pos);
   while (HOR_Stepper.distanceToGo() != 0) {
     HOR_Stepper.run();
@@ -188,7 +205,8 @@ void calibrateLimits() {
   }
 
 }
-
+//SLOTxQUANTITY
+//00x01,02x03,04x05,06x07,08x09,10x11,12x13,14x15,16x17,18x19,20x21,22x23
 void grabDrugs(String command) {
   command += ','; // Append a comma to ensure the last pair is processed
   int start = 0;
@@ -212,6 +230,8 @@ void grabDrugs(String command) {
       return;
     }
 
+    //
+
     long stepPerSlot = HOR_maxPosition / 24;
     targetPosition = stepPerSlot * (slot - 1);
     Serial.print("MOVING_TO_SLOT ");
@@ -231,4 +251,59 @@ void grabDrugs(String command) {
   }
 
   Serial.println("ALL_GRABS_DONE");
+}
+
+void goToDrug(int slot) {
+  if (slot < 1 || slot > 24) {
+    Serial.println("ERROR: INVALID_SLOT");
+    return;
+  }
+
+  int row = (slot - 1) / 8 + 1;
+  int col = (slot - 1) % 8 + 1;
+  
+
+  long stepPerSlot = HOR_maxPosition / 24;
+  targetPosition = stepPerSlot * (slot - 1);
+  
+  Serial.print("MOVING_TO_SLOT ");
+  Serial.println(slot);
+  
+  moveToPosition(targetPosition);
+
+}
+
+void goToRow(int row){
+  if (row < 1 || row > 3) {
+    Serial.println("ERROR: INVALID_ROW");
+    return;
+  }
+  if (row == 1){
+    targetPosition = 0;
+  } else if (row == 2){
+    targetPosition = HOR_maxPosition / 3;
+  } else if (row == 3){
+    targetPosition = (HOR_maxPosition / 3) * 2;
+  }
+
+  Serial.print("MOVING_TO_ROW ");
+  Serial.println(row);
+  
+  moveToPosition(targetPosition);
+}
+
+void goToColumn(int column){
+  if (column < 1 || column > 8) {
+    Serial.println("ERROR: INVALID_COLUMN");
+    return;
+  }
+
+  long stepPerSlot = HOR_maxPosition / 8;
+  targetPosition = stepPerSlot * (column);
+  
+  Serial.print("MOVING_TO_COLUMN ");
+  Serial.println(column);
+  
+  moveToPosition(targetPosition);
+
 }
