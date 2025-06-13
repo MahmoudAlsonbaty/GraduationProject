@@ -172,7 +172,8 @@ class CameraApp:
                 if frame is not None:
                     # Ensure frame has enough dimensions before converting and resizing
                     if frame.ndim >= 2:
-                        rgb_frame = frame
+                        # Swap color channels from BGR to RGB for correct display
+                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         self.frame = rgb_frame # Store for potential later use if needed
                         img = Image.fromarray(rgb_frame)
                         imgtk = ImageTk.PhotoImage(image=img)
