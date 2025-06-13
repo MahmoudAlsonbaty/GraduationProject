@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 #### worked one with camera 
 
-
-
-
-
-
-
 import tkinter as tk
 from tkinter import Label, Button
 from PIL import Image, ImageTk
@@ -43,7 +37,6 @@ class CameraApp:
         # --- Picamera2 Initialization ---
         self.picam2 = None # Initialize to None
 
-        print("DEBUG: Initializing Picamera2 object...")
         try:
             self.picam2 = Picamera2()
             print("DEBUG: Picamera2 object created.")
@@ -53,16 +46,11 @@ class CameraApp:
 
         # ***** ADDED: Robust Camera Reset Attempt *****
         try:
-            print("DEBUG: Attempting robust camera reset...")
             if self.picam2.started:
                 self.picam2.stop()
-                print("DEBUG: Picamera2 was found 'started' at init; stopping it.")
             self.picam2.close()
-            print("DEBUG: Attempted to close Picamera2 to ensure clean state.")
             # Re-initialize the Picamera2 object after closing
-            print("DEBUG: Re-initializing Picamera2 object after close...")
             self.picam2 = Picamera2()
-            print("DEBUG: Picamera2 re-initialized.")
         except Exception as e:
             print(f"WARNING: Error during pre-start camera reset: {e}")
             # If reset fails, we'll try to proceed, but it might lead to the original error.
@@ -71,15 +59,12 @@ class CameraApp:
 
         # Configure the camera to include BOTH 'main' and 'lores' streams
         camera_config = None # Initialize to None
-        print("DEBUG: Creating camera configuration...")
         try:
             camera_config = self.picam2.create_video_configuration(
                 main={"size": (1280, 720), "format": "RGB888"}, # High-res for capture
-                lores={"size": (640, 480), "format": "YUV420"}  # Low-res for live feed
+                lores={"size": (640, 480), "format": "RGB888"}  # Low-res for live feed
             )
-            print("DEBUG: Camera configuration created.")
         except Exception as e:
-            print(f"ERROR: Failed to create video configuration: {e}")
             # Attempt to close if it was opened
             if self.picam2 and self.picam2.started:
                 self.picam2.stop()
@@ -87,28 +72,22 @@ class CameraApp:
                 self.picam2.close()
             raise Exception(f"Failed to create camera configuration: {e}") # Re-raise
 
-        print("DEBUG: Configuring Picamera2 with the created config...")
         try:
             if camera_config: # Only configure if config was successfully created
                 self.picam2.configure(camera_config)
-                print("DEBUG: Picamera2 configured successfully.")
             else:
                 raise ValueError("Camera configuration was not created due to a previous error.")
         except Exception as e:
-            print(f"ERROR: Failed to apply camera configuration: {e}")
             if self.picam2 and self.picam2.started:
                 self.picam2.stop()
             if self.picam2:
                 self.picam2.close() # Ensure camera is closed on config error
             raise Exception(f"Failed to apply camera configuration: {e}") # Re-raise
 
-        print("DEBUG: Attempting to start Picamera2...")
         try:
             self.picam2.start()
-            print("DEBUG: Picamera2 started successfully.")
         except Exception as e:
             # If camera fails to start, ensure it's closed before raising.
-            print(f"ERROR: Could not start Picamera2: {e}")
             if self.picam2 and self.picam2.started:
                 self.picam2.stop()
             if self.picam2:
@@ -126,7 +105,6 @@ class CameraApp:
         # !!! IMPORTANT: Replace with your actual Gemini API key !!!
         self.api_key = "YOUR_GEMINI_API_KEY_HERE" # <--- REPLACE THIS LINE
         if self.api_key == "YOUR_GEMINI_API_KEY_HERE":
-            print("WARNING: Please replace 'YOUR_GEMINI_API_KEY_HERE' with your actual Gemini API key.")
             print("You can get one from https://makers.generativeai.google/key")
         try:
             genai.configure(api_key=self.api_key)
@@ -179,13 +157,10 @@ class CameraApp:
 
 
     def on_closing(self):
-        print("Closing window gracefully...")
         if self.analysis_executor:
             self.analysis_executor.shutdown(wait=True)
-            print("Analysis executor shut down.")
 
         self.release_camera()
-        print("Camera released and Tkinter window destroyed.")
         self.root.destroy()
 
     def update_feed(self):
@@ -204,18 +179,12 @@ class CameraApp:
 
                         self.canvas.imgtk = imgtk
                         self.canvas.configure(image=imgtk)
-                    else:
-                        print(f"WARNING: 'lores' frame has unexpected dimensions: {frame.ndim}")
-                else:
-                    print("WARNING: 'lores' frame is None, skipping update.")
             except Exception as e:
-                print(f"ERROR in update_feed: {e}")
                 self.result_label.config(text=f"Live feed error: {e}")
         self.root.after(10, self.update_feed)
 
     def capture_photo(self):
         if not self.picam2 or not self.picam2.started:
-            print("ERROR: Camera not active. Cannot capture photo.")
             self.result_label.config(text="ERROR: Camera not active. Cannot capture photo.")
             return
 
@@ -231,7 +200,6 @@ class CameraApp:
                 target_width = 800
                 target_height = int(target_width * h / w)
                 self.captured_image = cv2.resize(self.captured_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
-                print(f"DEBUG: Resized image to: {self.captured_image.shape[1]}x{self.captured_image.shape[0]} pixels.")
 
                 self.analysis_requested = False
                 self.result_label.config(text="Image captured. Press 'Confirm' to analyze or 'Retake'.")
@@ -246,25 +214,20 @@ class CameraApp:
                 self.confirm_button.pack(side=tk.LEFT, padx=10)
                 self.confirm_button.config(state="normal", text="Confirm")
 
-                print("Image captured (and resized, not flipped). Press 'Confirm' to analyze or 'Retake' to capture again.")
             else:
-                print("ERROR: Captured image is invalid (None or too few dimensions).")
                 self.result_label.config(text="ERROR: Failed to capture valid image.")
                 self.retake_photo() # Go back to live feed if capture failed
         except Exception as e:
-            print(f"ERROR during photo capture: {e}")
             self.result_label.config(text=f"ERROR during photo capture: {e}")
             self.retake_photo() # Go back to live feed if capture failed
 
 
     def start_analysis(self):
         if self.analysis_future and self.analysis_future.running():
-            print("Analysis already in progress. Please wait.")
             self.result_label.config(text="Analysis already in progress. Please wait.")
             return
 
         if self.captured_image is None or self.captured_image.ndim < 2:
-            print("ERROR: No valid image to analyze. Please capture an image first.")
             self.result_label.config(text="ERROR: No valid image to analyze. Please capture an image first.")
             return
 
@@ -273,7 +236,6 @@ class CameraApp:
         self.retake_button.config(state="disabled")
         self.result_label.config(text="Analyzing image with Gemini Vision AI...")
 
-        print("Starting Gemini analysis in background...")
         self.analysis_future = self.analysis_executor.submit(self._run_analysis_task)
         self.analysis_future.add_done_callback(self._analysis_done_callback)
 
@@ -283,7 +245,6 @@ class CameraApp:
 
         # Check analysis_requested again inside the thread just in case
         if not self.analysis_requested:
-            print("DEBUG: Analysis task detected cancellation request (before API call).")
             return {"status": "cancelled", "message": "Analysis cancelled before API call."}
 
         # Ensure captured_image is RGB (it should be from Picamera2's RGB888 format)
@@ -324,8 +285,6 @@ class CameraApp:
             "No medications: 'No medications found'\n"
         )
 
-        print(f"DEBUG: Prompt being sent: '{prompt}'")
-
         try:
             model = self.gemini_client.GenerativeModel('gemini-2.0-flash')
 
@@ -340,7 +299,6 @@ class CameraApp:
             )
 
             if not self.analysis_requested:
-                print("DEBUG: Analysis task detected cancellation request (after API call).")
                 return {"status": "cancelled", "message": "Analysis cancelled after API call."}
 
             return {"status": "success", "text": response.text}
@@ -353,8 +311,6 @@ class CameraApp:
             result = future.result()
             if result["status"] == "success":
                 raw_text = result["text"].strip()
-                print("\n--- Gemini Analysis Result ---")
-                print(f"Raw Response: {raw_text}")
 
                 processed_text = raw_text
                 final_output = ""
@@ -379,34 +335,26 @@ class CameraApp:
                     else:
                         final_output = "Analysis complete, but no specific medications were clearly identified. Raw response: " + raw_text
 
-                print(f"Processed Output: {final_output}")
-                print("------------------------------\n")
 
                 self.result_label.config(text=final_output)
 
             elif result["status"] == "cancelled":
-                print(f"Analysis was cancelled: {result['message']}")
                 self.result_label.config(text=f"Analysis was cancelled: {result['message']}")
             else: # error
-                print(f"ERROR: {result['message']}")
                 self.result_label.config(text=f"ERROR during analysis: {result['message']}")
         except concurrent.futures.CancelledError:
-            print("Analysis task was explicitly cancelled (e.g., by retake or shutdown).")
             self.result_label.config(text="Analysis task was cancelled.")
         except Exception as e:
-            print(f"An unexpected error occurred in analysis callback: {e}")
             self.result_label.config(text=f"An unexpected error occurred: {e}")
         finally:
             if self.analysis_requested: # Only reset buttons if analysis was actually requested (not just cancelled prematurely)
                 self.reset_buttons_after_analysis()
 
     def retake_photo(self):
-        print("Retake button pressed. Resetting to live feed.")
 
         self.analysis_requested = False
         if self.analysis_future and self.analysis_future.running():
             self.analysis_future.cancel()
-            print("DEBUG: Attempted to cancel ongoing analysis future.")
         self.analysis_future = None
 
         self.captured_image = None
@@ -418,25 +366,20 @@ class CameraApp:
         self.confirm_button.config(state="normal", text="Confirm")
 
         self.is_capturing = True
-        print("Application reset to live capture mode.")
 
     def reset_buttons_after_analysis(self):
         self.confirm_button.config(state="normal", text="Confirm")
         self.retake_button.config(state="normal")
-        print("Buttons reset after analysis.")
 
     def release_camera(self):
         """Release the camera resources."""
         if self.picam2: # Only try to stop/close if picam2 object exists
             if self.picam2.started:
                 self.picam2.stop()
-                print("Picamera2 stopped.")
             self.picam2.close()
-            print("Picamera2 closed.")
             self.picam2 = None # Set to None after closing
 
     def quit_program(self, event=None):
-        print("Exiting via 'q' key...")
         self.root.quit()
 
 if __name__ == "__main__":
@@ -446,8 +389,6 @@ if __name__ == "__main__":
         app = CameraApp(root)
         root.mainloop()
     except Exception as e:
-        print(f"An error occurred in main execution block: {e}")
         # Only attempt to release camera if the app object was successfully created
         if app and hasattr(app, 'release_camera'):
             app.release_camera()
-        print("Program terminated due to error.")
