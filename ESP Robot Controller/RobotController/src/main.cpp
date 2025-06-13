@@ -1,461 +1,50 @@
-#include <AccelStepper.h>
+#include <ESP32Servo.h>
 #include <Arduino.h>
+Servo myservo1;  // create first servo object
+Servo myservo2;  // create second servo object
 
-#include <Servo.h>
-Servo GRABBER_SERVO;
-Servo DOOR_SERVO;
-
-
-// Motor pins Horizontal (X-axis)
-#define HOR_DIR_PIN  19
-#define HOR_STEP_PIN 18
-#define HOR_ENABLE_PIN 23
-// Limit switch pins Horizontal (X-axis)
-#define HOR_LIMIT_MIN_PIN  14
-#define HOR_LIMIT_MAX_PIN  27
-#define HOR_LIMIT_PULLUP 32
-
-// Motor pins Vertical (Y-axis) 
-#define VERT_DIR_PIN  5
-#define VERT_STEP_PIN 17
-#define VERT_ENABLE_PIN 22
-// Limit switch pins Vertical (Y-axis)
-#define VERT_LIMIT_MIN_PIN 26
-#define VERT_LIMIT_MAX_PIN 25
-#define VERT_LIMIT_PULLUP 21
-
-// Servo Motors
-#define GRABBER_SERVO_PIN 33
-#define DOOR_SERVO_PIN 4
-
-#define GRABBER_SERVO_IDLE_ANGLE 0
-#define GRABBER_SERVO_GRAB_ANGLE 90
-
-#define DOOR_SERVO_OPEN_ANGLE 0
-#define DOOR_SERVO_CLOSED_ANGLE 90
-
-// Speed
-#define CALIBRATION_SPEED 1000
-#define CALIBRATION_ACCELERATION 500
-
-//
-// Distances for grabbing
-// These values are in steps, you can find the specific values using the other Script
-//
-long ROW_1 = 10;
-long ROW_2 = 20;
-long ROW_3 = 30;
-
-long COLUMN_1 = 10;
-long COLUMN_2 = 20;
-long COLUMN_3 = 30;
-long COLUMN_4 = 40;
-long COLUMN_5 = 50;
-long COLUMN_6 = 60;
-long COLUMN_7 = 70;
-long COLUMN_8 = 80;
-
-long HOR_DROP_OFF_POSITION = 1000; // Horizontal position for drop-off
-long VERT_DROP_OFF_POSITION = 5000; // Vertical position for drop-off
-
-AccelStepper HOR_Stepper(AccelStepper::DRIVER, HOR_STEP_PIN, HOR_DIR_PIN);
-AccelStepper VERT_Stepper(AccelStepper::DRIVER, VERT_STEP_PIN, VERT_DIR_PIN);
-
-bool connected = false;
-long HOR_maxPosition = 0;
-long VERT_maxPosition = 0;
-long targetPosition = 0;
-bool isCalibrated = false;
-
-void calibrateLimits();
-void grabDrugs(String command);
+//! Don't forget to check PWM pins that are usable
+int servoPin1 = 13;
+int servoPin2 = 12; // choose another available pin for the second servo
 
 void setup() {
-  Serial.begin(9600);
-  pinMode(HOR_LIMIT_MIN_PIN, INPUT_PULLDOWN);
-  pinMode(HOR_LIMIT_MAX_PIN, INPUT_PULLDOWN);
-  pinMode(VERT_LIMIT_MIN_PIN, INPUT_PULLDOWN);
-  pinMode(VERT_LIMIT_MAX_PIN, INPUT_PULLDOWN);
-
-  pinMode(HOR_LIMIT_PULLUP, OUTPUT);
-  pinMode(VERT_LIMIT_PULLUP, OUTPUT);
-
-  digitalWrite(HOR_LIMIT_PULLUP, HIGH); // Enable pull-up for horizontal limit switches
-  digitalWrite(VERT_LIMIT_PULLUP, HIGH); // Enable pull-up for vertical limit switches
-
-  GRABBER_SERVO.attach(GRABBER_SERVO_PIN);
-  GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Set initial position for grabber servo
-
-  DOOR_SERVO.attach(DOOR_SERVO_PIN);
-  DOOR_SERVO.write(DOOR_SERVO_CLOSED_ANGLE); // Set initial position for door servo
-
-  HOR_Stepper.setEnablePin(HOR_ENABLE_PIN);
-  HOR_Stepper.setPinsInverted(false, false, true);
-  HOR_Stepper.enableOutputs();
-  HOR_Stepper.setMaxSpeed(1000);
-  HOR_Stepper.setAcceleration(500);
-
-  VERT_Stepper.setEnablePin(VERT_ENABLE_PIN);
-  VERT_Stepper.setPinsInverted(false, false, true);
-  VERT_Stepper.enableOutputs();
-  VERT_Stepper.setMaxSpeed(1000);
-  VERT_Stepper.setAcceleration(500);
-
-  Serial.println("ESP32 Ready. Waiting for handshake...");
-
-  // while(true){
-  //   if(digitalRead(VERT_LIMIT_MAX_PIN)){
-  //     Serial.println("VERt LImit MAX ON");
-  //   }
-  //    if(digitalRead(VERT_LIMIT_MIN_PIN)){
-  //     Serial.println("VERt LImit MIN ON");
-  //   } if(digitalRead(HOR_LIMIT_MAX_PIN)){
-  //     Serial.println("HOR LImit MAX ON");
-  //   } if(digitalRead(HOR_LIMIT_MIN_PIN)){
-  //     Serial.println("HOR LImit MIN ON");
-  //   }
-
-  // }
-
-  while (!connected) {
-    if (Serial.available()) {
-      String cmd = Serial.readStringUntil('\n');
-      cmd.trim();
-      if (cmd == "HANDSHAKE") {
-        Serial.println("HANDSHAKE_DONE");
-        connected = true;
-        break;
-      }
-    }
-  }
-
-  Serial.println("ESP32 Setup complete. Ready for commands.");
+    Serial.begin(9600); // Start serial communication
+    ESP32PWM::allocateTimer(0);
+    ESP32PWM::allocateTimer(1);
+    ESP32PWM::allocateTimer(2);
+    ESP32PWM::allocateTimer(3);
+    myservo1.setPeriodHertz(50);    // standard 50 hz servo
+    myservo2.setPeriodHertz(50);
+    myservo1.attach(servoPin1); // attaches the first servo
+    myservo2.attach(servoPin2); // attaches the second servo
+    Serial.println("Send: servo_number angle (e.g., 1 90 or 2 45)");
 }
 
 void loop() {
-  if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-
-    if (input == "CALIBRATE") {
-      Serial.println("CALIBRATION_START");
-      calibrateLimits();
-      isCalibrated = true;
-      Serial.println("CALIBRATION_DONE");
-    } else if (input.startsWith("GRAB")) {
-      if (!isCalibrated) {
-        Serial.println("ERROR: NOT_CALIBRATED");
-        return;
-      }
-      String command = input.substring(5);
-      grabDrugs(command);
-    }else if (input == "TEST") {
-      Serial.println("testing");
-      HOR_Stepper.moveTo(HOR_maxPosition/2);
-      VERT_Stepper.moveTo(VERT_maxPosition/2);
-      while(HOR_Stepper.distanceToGo() != 0) {
-        HOR_Stepper.run();
-      }
-      while(VERT_Stepper.distanceToGo() != 0) {
-        VERT_Stepper.run();
-      }
-    }else if (input.startsWith("GO")) {
-      // Example: GO1000,7000
-      if (!isCalibrated) {
-        Serial.println("ERROR: NOT_CALIBRATED");
-        return;
-      }
-      String command = input.substring(3);
-      command.trim();
-      int commaIdx = command.indexOf(',');
-      if (commaIdx == -1) {
-        Serial.println("ERROR: INVALID_GO_FORMAT");
-        return;
-      }
-      long xPos = command.substring(0, commaIdx).toInt();
-      long yPos = command.substring(commaIdx + 1).toInt();
-      
-      while(HOR_Stepper.distanceToGo() != 0 || VERT_Stepper.distanceToGo() != 0) {
-        HOR_Stepper.run();
-        VERT_Stepper.run();
-      }
-
-    }else if (input.startsWith("SET")) {
-      // Example: SETC1,150 or SETR1,5000
-      String setCmd = input.substring(3); // Remove "SET"
-      setCmd.trim();
-      int commaIdx = setCmd.indexOf(',');
-      if (commaIdx == -1) {
-        Serial.println("ERROR: INVALID_SET_FORMAT");
-        return;
-      }
-      String var = setCmd.substring(0, commaIdx);
-      long value = setCmd.substring(commaIdx + 1).toInt();
-
-      if (var.startsWith("C")) {
-        int col = var.substring(1).toInt();
-        switch (col) {
-          case 1: COLUMN_1 = value; break;
-          case 2: COLUMN_2 = value; break;
-          case 3: COLUMN_3 = value; break;
-          case 4: COLUMN_4 = value; break;
-          case 5: COLUMN_5 = value; break;
-          case 6: COLUMN_6 = value; break;
-          case 7: COLUMN_7 = value; break;
-          case 8: COLUMN_8 = value; break;
-          default: Serial.println("ERROR: INVALID_COLUMN"); return;
+    if (Serial.available() > 0) {
+        String input = Serial.readStringUntil('\n');
+        input.trim();
+        int spaceIndex = input.indexOf(' ');
+        if (spaceIndex > 0) {
+            int servoNum = input.substring(0, spaceIndex).toInt();
+            int angle = input.substring(spaceIndex + 1).toInt();
+            if (angle >= 0 && angle <= 180) {
+                if (servoNum == 1) {
+                    myservo1.write(angle);
+                    Serial.print("Servo 1 moved to angle: ");
+                    Serial.println(angle);
+                } else if (servoNum == 2) {
+                    myservo2.write(angle);
+                    Serial.print("Servo 2 moved to angle: ");
+                    Serial.println(angle);
+                } else {
+                    Serial.println("Invalid servo number. Use 1 or 2.");
+                }
+            } else {
+                Serial.println("Invalid angle. Enter 0-180.");
+            }
+        } else {
+            Serial.println("Invalid input. Use: servo_number angle (e.g., 1 90)");
         }
-        Serial.print("COLUMN_"); Serial.print(col); Serial.print(" SET TO "); Serial.println(value);
-      } else if (var.startsWith("R")) {
-        int row = var.substring(1).toInt();
-        switch (row) {
-          case 1: ROW_1 = value; break;
-          case 2: ROW_2 = value; break;
-          case 3: ROW_3 = value; break;
-          default: Serial.println("ERROR: INVALID_ROW"); return;
-        }
-        Serial.print("ROW_"); Serial.print(row); Serial.print(" SET TO "); Serial.println(value);
-      } else if (var == "HDROP") { //SETHDROP,1234 -> Sets the drop off to 1234
-        HOR_DROP_OFF_POSITION = value;
-        Serial.print("HOR_DROP_OFF_POSITION SET TO "); Serial.println(value);
-      } else if (var == "VDROP") {
-        VERT_DROP_OFF_POSITION = value;
-        Serial.print("VERT_DROP_OFF_POSITION SET TO "); Serial.println(value);
-      } else {
-        Serial.println("ERROR: INVALID_SET_TARGET");
-      }
     }
-  }
-}
-
-
-
-void calibrateLimits() {
-  //
-  // HORIZONTAL CALIBRATION
-  //
-  HOR_Stepper.setMaxSpeed(CALIBRATION_SPEED);
-  HOR_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
-
-  // Move to MIN limit
-  HOR_Stepper.moveTo(100000);
-  while (digitalRead(HOR_LIMIT_MIN_PIN) == LOW) {
-    HOR_Stepper.run();
-  }
-  HOR_Stepper.setCurrentPosition(0);
-  HOR_Stepper.stop();
-  while (HOR_Stepper.isRunning()) HOR_Stepper.run();
-
-  // Move to MAX limit
-  HOR_Stepper.moveTo(-100000);
-  while (digitalRead(HOR_LIMIT_MAX_PIN) == LOW) {
-    HOR_Stepper.run();
-  }
-  HOR_maxPosition = HOR_Stepper.currentPosition();
-
-  HOR_Stepper.stop();
-  while (HOR_Stepper.isRunning()) HOR_Stepper.run();
-
-  // Return home
-  HOR_Stepper.moveTo(0);
-  while (HOR_Stepper.distanceToGo() != 0) {
-    HOR_Stepper.run();
-  }
-
-  Serial.println("Vertical Calibration Starting");
-
-  //
-  //! VERTICAL CALIBRATION
-  //
-
-  VERT_Stepper.setMaxSpeed(CALIBRATION_SPEED);
-  VERT_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
-
-  // Move to MIN limit
-  VERT_Stepper.moveTo(100000);
-  while (digitalRead(VERT_LIMIT_MIN_PIN) == LOW) {
-    VERT_Stepper.run();
-  }
-  VERT_Stepper.setCurrentPosition(0);
-  VERT_Stepper.stop();
-  while (VERT_Stepper.isRunning()) VERT_Stepper.run();
-
-  // Move to MAX limit
-  VERT_Stepper.moveTo(-100000);
-  while (digitalRead(VERT_LIMIT_MAX_PIN) == LOW) {
-    VERT_Stepper.run();
-  }
-  VERT_maxPosition = VERT_Stepper.currentPosition();
-
-  VERT_Stepper.stop();
-  while (VERT_Stepper.isRunning()) VERT_Stepper.run();
-
-  // Return home
-  VERT_Stepper.moveTo(0);
-  while (VERT_Stepper.distanceToGo() != 0) {
-    VERT_Stepper.run();
-  }
-
-}
-
-//SLOTxQUANTITY
-//00x01,02x03,04x05,06x07,08x09,10x11,12x13,14x15,16x17,18x19,20x21,22x23
-void grabDrugs(String command) {
-  command += ','; // Append a comma to ensure the last pair is processed
-  int start = 0;
-
-  while (start < command.length()) {
-    int commaIndex = command.indexOf(',', start);
-    if (commaIndex == -1) break;
-
-    String pair = command.substring(start, commaIndex);
-    int xIndex = pair.indexOf('x');
-    if (xIndex == -1 || xIndex == 0 || xIndex == pair.length() - 1) {
-      Serial.println("ERROR: INVALID_FORMAT");
-      return;
-    }
-
-    int slot = pair.substring(0, xIndex).toInt();
-    int quantity = pair.substring(xIndex + 1).toInt();
-
-    if (slot < 1 || slot > 24 || quantity < 1) {
-      Serial.println("ERROR: INVALID_SLOT_OR_QUANTITY");
-      return;
-    }
-
-    //
-    goToDrug(slot);
-    GrabMedication();
-    dropOFF(); // Drop off the medication after grabbing
-    Serial.print("Grabbed medication from slot ");
-
-    start = commaIndex + 1;
-  }
-
-  Serial.println("ALL_GRABS_DONE");
-}
-
-void openDoor() {
-  DOOR_SERVO.write(DOOR_SERVO_OPEN_ANGLE);
-}
-void closeDoor() {
-  DOOR_SERVO.write(DOOR_SERVO_CLOSED_ANGLE);
-}
-
-void GrabMedication() {
-  // Move the grabber servo to grab position
-  GRABBER_SERVO.write(GRABBER_SERVO_GRAB_ANGLE);
-  delay(1000); // Wait for the servo to reach the position
-  GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Return to idle position
-  delay(1000); // Wait for the servo to return to idle position
-}
-
-void dropOFF(){
-  HOR_Stepper.moveTo(HOR_DROP_OFF_POSITION);
-  VERT_Stepper.moveTo(VERT_DROP_OFF_POSITION);
-  while(HOR_Stepper.distanceToGo() != 0 || VERT_Stepper.distanceToGo() != 0) {
-    HOR_Stepper.run();
-    VERT_Stepper.run();
-  }
-  openDoor(); // Open the door to drop off the medication
-  delay(1000); // Wait for the door to open 
-  closeDoor(); // Close the door after dropping off
-  delay(1000); // Wait for the door to close
-}
-
-
-void goToDrug(int slot) {
-  if (slot < 1 || slot > 24) {
-    Serial.println("ERROR: INVALID_SLOT");
-    return;
-  }
-
-  int row = (slot - 1) / 8 + 1;
-  int col = (slot - 1) % 8 + 1;
-  long rowPos = rowToPos(row);
-  long colPos = columnToPos(col);
-
-  if (rowPos == -1) {
-    Serial.println("ERROR: INVALID_POSITION");
-    return;
-  }
-  if (colPos == -1) {
-    Serial.println("ERROR: INVALID_POSITION");
-    return;
-  }
-
-  // Move to the specified Position (Both Horizontal and Vertical)
-  while (VERT_Stepper.distanceToGo() != 0 || HOR_Stepper.distanceToGo() != 0) {
-    VERT_Stepper.run();
-    HOR_Stepper.run();
-  }
-
-}
-
-long rowToPos(int row){
-  if (row < 1 || row > 3) {
-    Serial.println("ERROR: INVALID_ROW");
-    return -1;
-  }
-  long pos = 0;
-  if (row == 1){
-    pos = ROW_1;
-  } else if (row == 2){
-    pos = ROW_2;
-  } else if (row == 3){
-    pos = ROW_3;
-  }
-
-  return pos;
-  // VERT_Stepper.moveTo(pos);
-  // while(VERT_Stepper.distanceToGo() != 0) {
-  //   VERT_Stepper.run();
-  // }
-  
-
-}
-
-long columnToPos(int column){
-  if (column < 1 || column > 8) {
-    Serial.println("ERROR: INVALID_COLUMN");
-    return -1;
-  }
-
-  // long stepPerSlot = HOR_maxPosition / 8;
-  // targetPosition = stepPerSlot * (column);
-  
-
-  long pos = 0;
-
-  switch (column)
-  {
-  case 1:
-    pos = COLUMN_1;
-    break;
-  case 2:
-    pos = COLUMN_2;
-    break;
-  case 3:
-    pos = COLUMN_3;
-    break;
-  case 4:
-    pos = COLUMN_4;
-    break;
-  case 5:
-    pos = COLUMN_5;
-    break;
-  case 6:
-    pos = COLUMN_6;
-    break;
-  case 7:
-    pos = COLUMN_7;
-    break;
-  case 8:
-    pos = COLUMN_8;
-    break;
-  default:
-    break;
-  }
-
-  return pos;
 }
