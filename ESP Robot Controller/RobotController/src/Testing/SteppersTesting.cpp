@@ -1,10 +1,11 @@
 #include <AccelStepper.h>
 #include <Arduino.h>
 
-#include <Servo.h>
-Servo GRABBER_SERVO;
-Servo DOOR_SERVO;
+//! if motors don't stop immediatly when hitting the limit switch, use disableOutputs() to stop them
+//! This might add future issues but test them just in case
 
+//! The Calibrate both function uses the disable_outputs() function to stop the motors
+//! But the Calibrate uses the traditional stop() function
 
 // Motor pins Horizontal (X-axis)
 #define HOR_DIR_PIN  19
@@ -23,16 +24,6 @@ Servo DOOR_SERVO;
 #define VERT_LIMIT_MIN_PIN 26
 #define VERT_LIMIT_MAX_PIN 25
 #define VERT_LIMIT_PULLUP 21
-
-// Servo Motors
-#define GRABBER_SERVO_PIN 33
-#define DOOR_SERVO_PIN 4
-
-#define GRABBER_SERVO_IDLE_ANGLE 0
-#define GRABBER_SERVO_GRAB_ANGLE 90
-
-#define DOOR_SERVO_OPEN_ANGLE 0
-#define DOOR_SERVO_CLOSED_ANGLE 90
 
 // Speed
 #define CALIBRATION_SPEED 1000
@@ -83,12 +74,6 @@ void setup() {
   digitalWrite(HOR_LIMIT_PULLUP, HIGH); // Enable pull-up for horizontal limit switches
   digitalWrite(VERT_LIMIT_PULLUP, HIGH); // Enable pull-up for vertical limit switches
 
-  GRABBER_SERVO.attach(GRABBER_SERVO_PIN);
-  GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Set initial position for grabber servo
-
-  DOOR_SERVO.attach(DOOR_SERVO_PIN);
-  DOOR_SERVO.write(DOOR_SERVO_CLOSED_ANGLE); // Set initial position for door servo
-
   HOR_Stepper.setEnablePin(HOR_ENABLE_PIN);
   HOR_Stepper.setPinsInverted(false, false, true);
   HOR_Stepper.enableOutputs();
@@ -101,33 +86,6 @@ void setup() {
   VERT_Stepper.setMaxSpeed(1000);
   VERT_Stepper.setAcceleration(500);
 
-  Serial.println("ESP32 Ready. Waiting for handshake...");
-
-  // while(true){
-  //   if(digitalRead(VERT_LIMIT_MAX_PIN)){
-  //     Serial.println("VERt LImit MAX ON");
-  //   }
-  //    if(digitalRead(VERT_LIMIT_MIN_PIN)){
-  //     Serial.println("VERt LImit MIN ON");
-  //   } if(digitalRead(HOR_LIMIT_MAX_PIN)){
-  //     Serial.println("HOR LImit MAX ON");
-  //   } if(digitalRead(HOR_LIMIT_MIN_PIN)){
-  //     Serial.println("HOR LImit MIN ON");
-  //   }
-
-  // }
-
-  while (!connected) {
-    if (Serial.available()) {
-      String cmd = Serial.readStringUntil('\n');
-      cmd.trim();
-      if (cmd == "HANDSHAKE") {
-        Serial.println("HANDSHAKE_DONE");
-        connected = true;
-        break;
-      }
-    }
-  }
 
   Serial.println("ESP32 Setup complete. Ready for commands.");
 }
@@ -142,23 +100,13 @@ void loop() {
       calibrateLimits();
       isCalibrated = true;
       Serial.println("CALIBRATION_DONE");
-    } else if (input.startsWith("GRAB")) {
+    }else if (input.startsWith("GRAB")) {
       if (!isCalibrated) {
         Serial.println("ERROR: NOT_CALIBRATED");
         return;
       }
       String command = input.substring(5);
       grabDrugs(command);
-    }else if (input == "TEST") {
-      Serial.println("testing");
-      HOR_Stepper.moveTo(HOR_maxPosition/2);
-      VERT_Stepper.moveTo(VERT_maxPosition/2);
-      while(HOR_Stepper.distanceToGo() != 0) {
-        HOR_Stepper.run();
-      }
-      while(VERT_Stepper.distanceToGo() != 0) {
-        VERT_Stepper.run();
-      }
     }else if (input.startsWith("GO")) {
       // Example: GO1000,7000
       if (!isCalibrated) {
@@ -228,7 +176,88 @@ void loop() {
   }
 }
 
+void calibrateBoth(){
+    HOR_Stepper.setMaxSpeed(CALIBRATION_SPEED);
+    HOR_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
 
+    VERT_Stepper.setMaxSpeed(CALIBRATION_SPEED);
+    VERT_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
+
+    bool horLimitMin = false;
+    bool horLimitMax = false;
+    bool vertLimitMin = false;
+    bool vertLimitMax = false;
+
+    //Starting Both Calibration
+    Serial.println("Starting Calibration For MIN directions for both steppers.");
+    HOR_Stepper.moveTo(100000);
+    VERT_Stepper.moveTo(100000);
+    while(!horLimitMin || !vertLimitMin){
+        horLimitMin = digitalRead(HOR_LIMIT_MIN_PIN);
+        vertLimitMin = digitalRead(VERT_LIMIT_MIN_PIN);
+        if(horLimitMin){
+            HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
+        }
+        if(vertLimitMin){
+            VERT_Stepper.disableOutputs(); // Same for vertical stepper
+        }
+        HOR_Stepper.run();
+        VERT_Stepper.run();
+    }
+    Serial.println("Reached MIN limits for both steppers.");
+    HOR_Stepper.setCurrentPosition(0);
+    HOR_Stepper.stop();
+    while (HOR_Stepper.isRunning()) HOR_Stepper.run();
+
+    VERT_Stepper.setCurrentPosition(0);
+    VERT_Stepper.stop();
+    while (VERT_Stepper.isRunning()) VERT_Stepper.run();
+    
+    delay(1000); // Wait for a second to ensure everything is stable
+
+    HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
+    VERT_Stepper.enableOutputs(); // Same for vertical stepper
+
+
+    Serial.println("Starting Calibration For MAX directions for both steppers.");
+    // Move to MAX limit
+    HOR_Stepper.moveTo(-100000);
+    VERT_Stepper.moveTo(-100000);
+
+    while(!horLimitMax || !vertLimitMax){
+        horLimitMax = digitalRead(HOR_LIMIT_MAX_PIN);
+        vertLimitMax = digitalRead(VERT_LIMIT_MAX_PIN);
+        if(horLimitMax){
+            HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
+        }
+        if(vertLimitMax){
+            VERT_Stepper.disableOutputs(); // Same for vertical stepper
+        }
+        HOR_Stepper.run();
+        VERT_Stepper.run();
+    }
+    HOR_maxPosition = HOR_Stepper.currentPosition();
+    VERT_maxPosition = VERT_Stepper.currentPosition();
+    
+    HOR_Stepper.stop();
+    while (HOR_Stepper.isRunning()) HOR_Stepper.run();
+    
+    VERT_Stepper.stop();
+    while (VERT_Stepper.isRunning()) VERT_Stepper.run();
+    
+    delay(1000); // Wait for a second to ensure everything is stable
+    Serial.println("Reached MAX limits for both steppers.");
+
+    HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
+    VERT_Stepper.enableOutputs(); // Same for vertical stepper
+
+
+    Serial.println("Calibration complete For Both.");
+    Serial.print("Horizontal Max Position: ");
+    Serial.print(HOR_maxPosition);
+    Serial.print(" ,Vertical Max Position: ");
+    Serial.println(VERT_maxPosition);
+}
 
 void calibrateLimits() {
   //
@@ -257,7 +286,7 @@ void calibrateLimits() {
   while (HOR_Stepper.isRunning()) HOR_Stepper.run();
 
   // Return home
-  HOR_Stepper.moveTo(0);
+  HOR_Stepper.moveTo(HOR_maxPosition / 2); // Move to the middle position
   while (HOR_Stepper.distanceToGo() != 0) {
     HOR_Stepper.run();
   }
@@ -291,7 +320,7 @@ void calibrateLimits() {
   while (VERT_Stepper.isRunning()) VERT_Stepper.run();
 
   // Return home
-  VERT_Stepper.moveTo(0);
+  VERT_Stepper.moveTo(VERT_maxPosition / 2); // Move to the middle position
   while (VERT_Stepper.distanceToGo() != 0) {
     VERT_Stepper.run();
   }
@@ -325,7 +354,6 @@ void grabDrugs(String command) {
 
     //
     goToDrug(slot);
-    GrabMedication();
     dropOFF(); // Drop off the medication after grabbing
     Serial.print("Grabbed medication from slot ");
 
@@ -335,20 +363,6 @@ void grabDrugs(String command) {
   Serial.println("ALL_GRABS_DONE");
 }
 
-void openDoor() {
-  DOOR_SERVO.write(DOOR_SERVO_OPEN_ANGLE);
-}
-void closeDoor() {
-  DOOR_SERVO.write(DOOR_SERVO_CLOSED_ANGLE);
-}
-
-void GrabMedication() {
-  // Move the grabber servo to grab position
-  GRABBER_SERVO.write(GRABBER_SERVO_GRAB_ANGLE);
-  delay(1000); // Wait for the servo to reach the position
-  GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Return to idle position
-  delay(1000); // Wait for the servo to return to idle position
-}
 
 void dropOFF(){
   HOR_Stepper.moveTo(HOR_DROP_OFF_POSITION);
@@ -357,10 +371,6 @@ void dropOFF(){
     HOR_Stepper.run();
     VERT_Stepper.run();
   }
-  openDoor(); // Open the door to drop off the medication
-  delay(1000); // Wait for the door to open 
-  closeDoor(); // Close the door after dropping off
-  delay(1000); // Wait for the door to close
 }
 
 
@@ -458,4 +468,5 @@ long columnToPos(int column){
   }
 
   return pos;
+
 }
