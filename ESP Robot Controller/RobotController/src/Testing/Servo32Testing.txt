@@ -15,8 +15,8 @@ void setup() {
     ESP32PWM::allocateTimer(3);
     myservo1.setPeriodHertz(50);    // standard 50 hz servo
     myservo2.setPeriodHertz(50);
-    myservo1.attach(servoPin1); // attaches the first servo
-    myservo2.attach(servoPin2); // attaches the second servo
+    myservo1.attach(servoPin1, 500, 2400); // attaches the first servo
+    myservo2.attach(servoPin2, 500, 2400); // attaches the second servo
     Serial.println("Send: servo_number angle (e.g., 1 90 or 2 45)");
 }
 
