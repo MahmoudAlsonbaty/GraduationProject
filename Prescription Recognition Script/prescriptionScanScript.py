@@ -197,15 +197,18 @@ class CameraApp:
 
             # Ensure captured_image is a valid array before proceeding
             if self.captured_image is not None and self.captured_image.ndim >= 2:
-                h, w = self.captured_image.shape[:2]
+                # Convert BGR to RGB for correct display
+                rgb_image = cv2.cvtColor(self.captured_image, cv2.COLOR_BGR2RGB)
+                h, w = rgb_image.shape[:2]
                 target_width = 800
                 target_height = int(target_width * h / w)
-                self.captured_image = cv2.resize(self.captured_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
+                rgb_image = cv2.resize(rgb_image, (target_width, target_height), interpolation=cv2.INTER_AREA)
+                self.captured_image = rgb_image
 
                 self.analysis_requested = False
                 self.result_label.config(text="Image captured. Press 'Confirm' to analyze or 'Retake'.")
 
-                img = Image.fromarray(self.captured_image)
+                img = Image.fromarray(rgb_image)
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.canvas.imgtk = imgtk
                 self.canvas.configure(image=imgtk)
