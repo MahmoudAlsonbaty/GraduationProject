@@ -103,7 +103,7 @@ class CameraApp:
         self.analysis_requested = False # Flag to indicate if an analysis has been confirmed by user
 
         # !!! IMPORTANT: Replace with your actual Gemini API key !!!
-        self.api_key = "YOUR_GEMINI_API_KEY_HERE" # <--- REPLACE THIS LINE
+        self.api_key = "AIzaSyADnX4Ek7xZLQjo3k80ymegXbj-mKifHdI" # <--- REPLACE THIS LINE
         if self.api_key == "YOUR_GEMINI_API_KEY_HERE":
             print("You can get one from https://makers.generativeai.google/key")
         try:
