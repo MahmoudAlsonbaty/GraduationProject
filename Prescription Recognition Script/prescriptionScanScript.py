@@ -275,18 +275,19 @@ class CameraApp:
 
         image_bytes_data = buffer.tobytes()
 
-        prompt = (
-            "You are an AI assistant specialized in medical document analysis. "
-            "Carefully examine the provided image. "
-            "If the image contains a clear prescription, list **ONLY the names of the medications**. "
-            "Present them as a comma-separated list. "
-            "If no medications are identifiable or if the image is not a prescription, "
-            "state 'No medications found' or describe the general content of the image concisely "
-            "if it's clearly not a medical document. "
-            "Examples:\n"
-            "Prescription: 'Amoxicillin, Ibuprofen, Lisinopril'\n"
-            "Not a prescription: 'A document containing various handwritten notes'\n"
-            "No medications: 'No medications found'\n"
+        prompt = ("""
+THIS IS IMPORTANT GEMINI, YOU'RE RESPONSIBLE FOR A LIFE NOW
+
+I WILL SHOW YOU AN IMAGE OF A PRESCRIPTION AND I WANT YOU TO EXTRACT THE MEDICATION FROM IT, AND ONLY THE MEDICATION DON't SAY ANYTHING ELSE
+
+ONLY EXTRACT THE MEDIICATION LIKE THIS:
+Medication1, Medication2, Medication3
+
+AND IF NO MEDICATION FOUND SAY NONE
+
+NOTHING MORE
+
+"""
         )
 
         try:
