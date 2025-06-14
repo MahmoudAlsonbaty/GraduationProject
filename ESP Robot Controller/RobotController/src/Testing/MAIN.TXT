@@ -35,28 +35,28 @@ Servo DOOR_SERVO;
 #define DOOR_SERVO_CLOSED_ANGLE 90
 
 // Speed
-#define CALIBRATION_SPEED 1000
-#define CALIBRATION_ACCELERATION 500
+#define CALIBRATION_SPEED 2000
+#define CALIBRATION_ACCELERATION 1000
 
 //
 // Distances for grabbing
 // These values are in steps, you can find the specific values using the other Script
 //
-long ROW_1 = 10;
-long ROW_2 = 20;
-long ROW_3 = 30;
+long ROW_1 = -15800;
+long ROW_2 = -25100;
+long ROW_3 = -35200;
 
-long COLUMN_1 = 10;
-long COLUMN_2 = 20;
-long COLUMN_3 = 30;
-long COLUMN_4 = 40;
-long COLUMN_5 = 50;
-long COLUMN_6 = 60;
-long COLUMN_7 = 70;
-long COLUMN_8 = 80;
+long COLUMN_1 = -2100;
+long COLUMN_2 = -7500;
+long COLUMN_3 = -13100;
+long COLUMN_4 = -18600;
+long COLUMN_5 = -24100;
+long COLUMN_6 = -29600;
+long COLUMN_7 = -35100;
+long COLUMN_8 = -37000; //STAY AWAY THIS COULD BE WRONG
 
-long HOR_DROP_OFF_POSITION = 1000; // Horizontal position for drop-off
-long VERT_DROP_OFF_POSITION = 5000; // Vertical position for drop-off
+long HOR_DROP_OFF_POSITION = -37000; // Horizontal position for drop-off
+long VERT_DROP_OFF_POSITION = -38000; // Vertical position for drop-off
 
 AccelStepper HOR_Stepper(AccelStepper::DRIVER, HOR_STEP_PIN, HOR_DIR_PIN);
 AccelStepper VERT_Stepper(AccelStepper::DRIVER, VERT_STEP_PIN, VERT_DIR_PIN);
