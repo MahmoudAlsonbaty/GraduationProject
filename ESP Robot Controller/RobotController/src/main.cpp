@@ -104,31 +104,8 @@ void calibrateBoth(){
     VERT_Stepper.moveTo(100000);
     while(!horLimitMin || !vertLimitMin){
 
-        bool limitHorChange = horLimitMin;
-        bool limitVertChange = vertLimitMin;
         horLimitMin = digitalRead(HOR_LIMIT_MIN_PIN);
         vertLimitMin = !digitalRead(VERT_LIMIT_MIN_PIN);
-        
-        if(limitHorChange != horLimitMin){
-          Serial.print("Hor Limit Changed");
-          if(horLimitMin){
-            Serial.println(" True");
-          }else{
-            Serial.println(" False");
-
-          }
-        }
-        
-        if(limitVertChange != vertLimitMin){
-          Serial.print("Vert Limit Changed");
-          if(vertLimitMin){
-            Serial.println(" True");
-          }else{
-            Serial.println(" False");
-
-          }
-        }
-
         if(horLimitMin){
             HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
             // Serial.println("Disabled HOR as Limit Min is reached");
@@ -168,33 +145,8 @@ void calibrateBoth(){
               HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
         VERT_Stepper.enableOutputs(); // Same for vertical stepper
 
-        bool horLimitChange = horLimitMax;
-        bool vertLimitChange = vertLimitMax;
-
         horLimitMax = digitalRead(HOR_LIMIT_MAX_PIN);
         vertLimitMax = digitalRead(VERT_LIMIT_MAX_PIN);
-        
-        
-        if(horLimitChange != horLimitMax){
-          Serial.print("Hor Limit Changed");
-          if(horLimitMax){
-            Serial.println(" True");
-          }else{
-            Serial.println(" False");
-
-          }
-        }
-        
-        if(vertLimitChange != vertLimitMax){
-          Serial.print("Vert Limit Changed");
-          if(vertLimitMax){
-            Serial.println(" True");
-          }else{
-            Serial.println(" False");
-          }
-        }
-
-        
         if(horLimitMax){
             HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
             // Serial.println("Disabled HOR as Limit MAX is reached");
