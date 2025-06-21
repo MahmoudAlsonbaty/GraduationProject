@@ -22,7 +22,7 @@
 #define VERT_STEP_PIN 17
 #define VERT_ENABLE_PIN 22
 // Limit switch pins Vertical (Y-axis)
-#define VERT_LIMIT_MIN_PIN 26
+#define VERT_LIMIT_MIN_PIN 4
 #define VERT_LIMIT_MAX_PIN 25
 #define VERT_LIMIT_PULLUP 21
 

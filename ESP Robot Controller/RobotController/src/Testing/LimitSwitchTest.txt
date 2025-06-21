@@ -6,14 +6,21 @@
 #define HOR_LIMIT_PULLUP 32
 
 // Limit switch pins Vertical (Y-axis)
-#define VERT_LIMIT_MIN_PIN 26
+#define VERT_LIMIT_MIN_PIN 4
 #define VERT_LIMIT_MAX_PIN 25
 #define VERT_LIMIT_PULLUP 21
+
 void setup() {
 pinMode(HOR_LIMIT_MIN_PIN, INPUT_PULLDOWN);
   pinMode(HOR_LIMIT_MAX_PIN, INPUT_PULLDOWN);
-  pinMode(VERT_LIMIT_MIN_PIN, INPUT_PULLDOWN);
+  pinMode(VERT_LIMIT_MIN_PIN, INPUT_PULLUP);
   pinMode(VERT_LIMIT_MAX_PIN, INPUT_PULLDOWN);
+
+  pinMode(16,INPUT_PULLDOWN);
+  digitalWrite(16,LOW);
+
+
+
 
   pinMode(HOR_LIMIT_PULLUP, OUTPUT);
   pinMode(VERT_LIMIT_PULLUP, OUTPUT);
@@ -32,7 +39,7 @@ void loop() {
   if (digitalRead(HOR_LIMIT_MAX_PIN)) {
     status += "H Max ";
   }
-  if (digitalRead(VERT_LIMIT_MIN_PIN)) {
+  if (!digitalRead(VERT_LIMIT_MIN_PIN)) {
     status += "V Min ";
   }
   if (digitalRead(VERT_LIMIT_MAX_PIN)) {
@@ -41,5 +48,8 @@ void loop() {
 
   if (status.length() > 0) {
     Serial.println(status);
+  }else{
+    Serial.println("NO INPUT");
+    
   }
 }
