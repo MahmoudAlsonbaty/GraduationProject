@@ -282,6 +282,7 @@ void calibrateBoth(){
 long timeSinceLastLimitSwitchTest = 0;
 
 void testLimitSwitches(){
+  Serial.println("Starting Limit Switch Test");
   while(millis() - timeSinceLastLimitSwitchTest < 5000){
     String status = "";
     if (!digitalRead(HOR_LIMIT_MIN_PIN)) {
@@ -304,7 +305,7 @@ void testLimitSwitches(){
 
     }
   }
-  
+  Serial.println("Ending Limit Switch Test");
 }
 
 
