@@ -31,7 +31,7 @@ Servo GRABBER_SERVO;
 #define GRABBER_SERVO_GRAB_ANGLE 10
 
 #define DOOR_SERVO_OPEN_ANGLE 120
-#define DOOR_SERVO_CLOSED_ANGLE 60
+#define DOOR_SERVO_CLOSED_ANGLE 50
 
 // Speed
 #define CALIBRATION_SPEED 1500
@@ -41,14 +41,14 @@ Servo GRABBER_SERVO;
 // Distances for grabbing
 // These values are in steps, you can find the specific values using the other Script
 //
-long ROW_1 = -15800;
-long ROW_2 = -25100;
+long ROW_1 = -15600;
+long ROW_2 = -25600;
 long ROW_3 = -35200;
 
 long COLUMN_1 = -2100;
 long COLUMN_2 = -7500;
-long COLUMN_3 = -13100;
-long COLUMN_4 = -18600;
+long COLUMN_3 = -11850;
+long COLUMN_4 = -17200;
 long COLUMN_5 = -24100;
 long COLUMN_6 = -29600;
 long COLUMN_7 = -35100;
@@ -532,6 +532,10 @@ void GrabMedication() {
   delay(1500); // Wait for the servo to reach the position
   GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Return to idle position
   delay(1500); // Wait for the servo to return to idle position
+
+  //IN CASE IT OPENS THE DOOR
+  closeDoor();
+
 }
 
 void dropOFF(){
