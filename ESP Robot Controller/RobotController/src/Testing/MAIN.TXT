@@ -5,39 +5,37 @@
 
 
 // Motor pins Horizontal (X-axis)
-#define HOR_DIR_PIN  19
-#define HOR_STEP_PIN 18
-#define HOR_ENABLE_PIN 23
+#define HOR_DIR_PIN  19 //DONE
+#define HOR_STEP_PIN 18 //DONE 
+#define HOR_ENABLE_PIN 23 //DONE
 // Limit switch pins Horizontal (X-axis)
-#define HOR_LIMIT_MIN_PIN  14
-#define HOR_LIMIT_MAX_PIN  27
-#define HOR_LIMIT_PULLUP 32
+#define HOR_LIMIT_MIN_PIN  14 //DONE
+#define HOR_LIMIT_MAX_PIN  27 //DONE
 
 // Motor pins Vertical (Y-axis) 
-#define VERT_DIR_PIN  5
-#define VERT_STEP_PIN 17
-#define VERT_ENABLE_PIN 22
+#define VERT_DIR_PIN  5   //DONE
+#define VERT_STEP_PIN 17  //DONE
+#define VERT_ENABLE_PIN 22 //DONE
 // Limit switch pins Vertical (Y-axis)
-#define VERT_LIMIT_MIN_PIN 4
-#define VERT_LIMIT_MAX_PIN 25
-#define VERT_LIMIT_PULLUP 21
+#define VERT_LIMIT_MIN_PIN 4 //DONE
+#define VERT_LIMIT_MAX_PIN 25 //DONE
 
 // Servo Motors
 Servo DOOR_SERVO;  
 Servo GRABBER_SERVO; 
 
-#define GRABBER_SERVO_PIN 12 //SERVO 2, PIN 12
-#define DOOR_SERVO_PIN 13 //SERVO 1, PIN 13
+#define GRABBER_SERVO_PIN 12 //DONE
+#define DOOR_SERVO_PIN 13 //DONE
 
-#define GRABBER_SERVO_IDLE_ANGLE 180 
+#define GRABBER_SERVO_IDLE_ANGLE 170 
 #define GRABBER_SERVO_GRAB_ANGLE 10
 
-#define DOOR_SERVO_OPEN_ANGLE 0
-#define DOOR_SERVO_CLOSED_ANGLE 90
+#define DOOR_SERVO_OPEN_ANGLE 120
+#define DOOR_SERVO_CLOSED_ANGLE 60
 
 // Speed
-#define CALIBRATION_SPEED 2000
-#define CALIBRATION_ACCELERATION 1000
+#define CALIBRATION_SPEED 1500
+#define CALIBRATION_ACCELERATION 1500
 
 //
 // Distances for grabbing
@@ -79,6 +77,7 @@ void calibrateLimits();
 
 
 
+
 void calibrateBoth(){
     HOR_Stepper.setMaxSpeed(CALIBRATION_SPEED);
     HOR_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
@@ -94,7 +93,7 @@ void calibrateBoth(){
     bool horLimitMax = false;
     bool vertLimitMin = false;
     bool vertLimitMax = false;
-    horLimitMin = digitalRead(HOR_LIMIT_MIN_PIN);
+    horLimitMin = !digitalRead(HOR_LIMIT_MIN_PIN);
     vertLimitMin = !digitalRead(VERT_LIMIT_MIN_PIN);
 
     //Starting Both Calibration
@@ -103,8 +102,31 @@ void calibrateBoth(){
     VERT_Stepper.moveTo(100000);
     while(!horLimitMin || !vertLimitMin){
 
-        horLimitMin = digitalRead(HOR_LIMIT_MIN_PIN);
+        bool limitHorChange = horLimitMin;
+        bool limitVertChange = vertLimitMin;
+        horLimitMin = !digitalRead(HOR_LIMIT_MIN_PIN);
         vertLimitMin = !digitalRead(VERT_LIMIT_MIN_PIN);
+        
+        if(limitHorChange != horLimitMin){
+          Serial.print("Hor Limit Changed");
+          if(horLimitMin){
+            Serial.println(" True");
+          }else{
+            Serial.println(" False");
+
+          }
+        }
+        
+        if(limitVertChange != vertLimitMin){
+          Serial.print("Vert Limit Changed");
+          if(vertLimitMin){
+            Serial.println(" True");
+          }else{
+            Serial.println(" False");
+
+          }
+        }
+
         if(horLimitMin){
             HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
             // Serial.println("Disabled HOR as Limit Min is reached");
@@ -144,8 +166,33 @@ void calibrateBoth(){
               HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
         VERT_Stepper.enableOutputs(); // Same for vertical stepper
 
-        horLimitMax = digitalRead(HOR_LIMIT_MAX_PIN);
-        vertLimitMax = digitalRead(VERT_LIMIT_MAX_PIN);
+        bool horLimitChange = horLimitMax;
+        bool vertLimitChange = vertLimitMax;
+
+        horLimitMax = !digitalRead(HOR_LIMIT_MAX_PIN);
+        vertLimitMax = !digitalRead(VERT_LIMIT_MAX_PIN);
+        
+        
+        if(horLimitChange != horLimitMax){
+          Serial.print("Hor Limit Changed");
+          if(horLimitMax){
+            Serial.println(" True");
+          }else{
+            Serial.println(" False");
+
+          }
+        }
+        
+        if(vertLimitChange != vertLimitMax){
+          Serial.print("Vert Limit Changed");
+          if(vertLimitMax){
+            Serial.println(" True");
+          }else{
+            Serial.println(" False");
+          }
+        }
+
+        
         if(horLimitMax){
             HOR_Stepper.disableOutputs(); // Immediately disables the stepper outputs (motor stops instantly)
             // Serial.println("Disabled HOR as Limit MAX is reached");
@@ -171,13 +218,46 @@ void calibrateBoth(){
 
     HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
     VERT_Stepper.enableOutputs(); // Same for vertical stepper
-
-
+    
+    
     Serial.println("Calibration complete For Both.");
     Serial.print("Horizontal Max Position: ");
     Serial.print(HOR_maxPosition);
     Serial.print(" ,Vertical Max Position: ");
     Serial.println(VERT_maxPosition);
+    
+    
+    delay(500); // Wait for a second to ensure everything is stable
+    Serial.println("Retrackting a bit");
+
+    
+    horLimitMin = !digitalRead(HOR_LIMIT_MIN_PIN);
+    vertLimitMin = !digitalRead(VERT_LIMIT_MIN_PIN);
+    HOR_Stepper.moveTo(HOR_maxPosition /2); // Retract a bit from max position
+    VERT_Stepper.moveTo(VERT_maxPosition /2);
+    
+  while (HOR_Stepper.distanceToGo() != 0 || VERT_Stepper.distanceToGo() != 0) {
+    //SAFETY
+    // if (digitalRead(HOR_LIMIT_MIN_PIN) == LOW || digitalRead(HOR_LIMIT_MAX_PIN) == LOW) {
+    //   HOR_Stepper.disableOutputs();
+    // }else{
+    //   HOR_Stepper.enableOutputs();
+    // }
+
+    // if( digitalRead(VERT_LIMIT_MIN_PIN) == LOW || digitalRead(VERT_LIMIT_MAX_PIN) == LOW) {
+    //   VERT_Stepper.disableOutputs();
+    // }else{
+    //   VERT_Stepper.enableOutputs();
+    // }
+
+    HOR_Stepper.run();
+    VERT_Stepper.run();
+  }
+    delay(1000); // Wait for a second to ensure everything is stable
+
+    HOR_Stepper.enableOutputs(); // Immediately enables the stepper outputs (motor starts)
+    VERT_Stepper.enableOutputs(); // Same for vertical stepper
+
 }
 
 
@@ -185,16 +265,11 @@ void calibrateBoth(){
 
 void setup() {
   Serial.begin(9600);
-  pinMode(HOR_LIMIT_MIN_PIN, INPUT_PULLDOWN);
-  pinMode(HOR_LIMIT_MAX_PIN, INPUT_PULLDOWN);
+  pinMode(HOR_LIMIT_MIN_PIN, INPUT_PULLUP);
+  pinMode(HOR_LIMIT_MAX_PIN, INPUT_PULLUP);
   pinMode(VERT_LIMIT_MIN_PIN, INPUT_PULLUP);
-  pinMode(VERT_LIMIT_MAX_PIN, INPUT_PULLDOWN);
+  pinMode(VERT_LIMIT_MAX_PIN, INPUT_PULLUP);
 
-  pinMode(HOR_LIMIT_PULLUP, OUTPUT);
-  pinMode(VERT_LIMIT_PULLUP, OUTPUT);
-
-  digitalWrite(HOR_LIMIT_PULLUP, HIGH); // Enable pull-up for horizontal limit switches
-  digitalWrite(VERT_LIMIT_PULLUP, HIGH); // Enable pull-up for vertical limit switches
 
   GRABBER_SERVO.attach(GRABBER_SERVO_PIN);
   GRABBER_SERVO.write(GRABBER_SERVO_IDLE_ANGLE); // Set initial position for grabber servo
@@ -260,7 +335,7 @@ void loop() {
         Serial.println("ERROR: NOT_CALIBRATED");
         return;
       }
-      String command = input.substring(5);
+      String command = input.substring(4);
       grabDrugs(command);
     }else if (input == "TEST") {
       Serial.println("testing");
@@ -299,7 +374,23 @@ void loop() {
   Serial.print(" y to go ");
   Serial.println(VERT_Stepper.distanceToGo());
 
+  bool horStateChanged = false;
+  bool vertStateChanged = false;
+
   while (HOR_Stepper.distanceToGo() != 0 || VERT_Stepper.distanceToGo() != 0) {
+    //SAFETY
+    if (digitalRead(HOR_LIMIT_MIN_PIN) == LOW || digitalRead(HOR_LIMIT_MAX_PIN) == LOW) {
+      HOR_Stepper.disableOutputs();
+    }else{
+      HOR_Stepper.enableOutputs();
+    }
+
+    if( digitalRead(VERT_LIMIT_MIN_PIN) == LOW || digitalRead(VERT_LIMIT_MAX_PIN) == LOW) {
+      VERT_Stepper.disableOutputs();
+    }else{
+      VERT_Stepper.enableOutputs();
+    }
+
     HOR_Stepper.run();
     VERT_Stepper.run();
   }
@@ -353,75 +444,6 @@ void loop() {
   }
 }
 
-
-
-void calibrateLimits() {
-  //
-  // HORIZONTAL CALIBRATION
-  //
-  HOR_Stepper.setMaxSpeed(CALIBRATION_SPEED);
-  HOR_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
-
-  // Move to MIN limit
-  HOR_Stepper.moveTo(100000);
-  while (digitalRead(HOR_LIMIT_MIN_PIN) == LOW) {
-    HOR_Stepper.run();
-  }
-  HOR_Stepper.setCurrentPosition(0);
-  HOR_Stepper.stop();
-  while (HOR_Stepper.isRunning()) HOR_Stepper.run();
-
-  // Move to MAX limit
-  HOR_Stepper.moveTo(-100000);
-  while (digitalRead(HOR_LIMIT_MAX_PIN) == LOW) {
-    HOR_Stepper.run();
-  }
-  HOR_maxPosition = HOR_Stepper.currentPosition();
-
-  HOR_Stepper.stop();
-  while (HOR_Stepper.isRunning()) HOR_Stepper.run();
-
-  // Return home
-  HOR_Stepper.moveTo(0);
-  while (HOR_Stepper.distanceToGo() != 0) {
-    HOR_Stepper.run();
-  }
-
-  Serial.println("Vertical Calibration Starting");
-
-  //
-  //! VERTICAL CALIBRATION
-  //
-
-  VERT_Stepper.setMaxSpeed(CALIBRATION_SPEED);
-  VERT_Stepper.setAcceleration(CALIBRATION_ACCELERATION);
-
-  // Move to MIN limit
-  VERT_Stepper.moveTo(100000);
-  while (!digitalRead(VERT_LIMIT_MIN_PIN) == LOW) {
-    VERT_Stepper.run();
-  }
-  VERT_Stepper.setCurrentPosition(0);
-  VERT_Stepper.stop();
-  while (VERT_Stepper.isRunning()) VERT_Stepper.run();
-
-  // Move to MAX limit
-  VERT_Stepper.moveTo(-100000);
-  while (digitalRead(VERT_LIMIT_MAX_PIN) == LOW) {
-    VERT_Stepper.run();
-  }
-  VERT_maxPosition = VERT_Stepper.currentPosition();
-
-  VERT_Stepper.stop();
-  while (VERT_Stepper.isRunning()) VERT_Stepper.run();
-
-  // Return home
-  VERT_Stepper.moveTo(0);
-  while (VERT_Stepper.distanceToGo() != 0) {
-    VERT_Stepper.run();
-  }
-
-}
 
 //SLOTxQUANTITY
 //00x01,02x03,04x05,06x07,08x09,10x11,12x13,14x15,16x17,18x19,20x21,22x23
@@ -490,6 +512,9 @@ void dropOFF(){
 
 
 void goToDrug(int slot) {
+  
+    Serial.print("GRABBING SLOT ");
+    Serial.println(slot);
   if (slot < 1 || slot > 24) {
     Serial.println("ERROR: INVALID_SLOT");
     return;
@@ -528,10 +553,19 @@ long rowToPos(int row){
   long pos = 0;
   if (row == 1){
     pos = ROW_1;
+    Serial.println("Row 1");
+    Serial.println(pos);
+
   } else if (row == 2){
     pos = ROW_2;
+    Serial.println("Row 2");
+    Serial.println(pos);
+
   } else if (row == 3){
     pos = ROW_3;
+    Serial.println("Row 3");
+    Serial.println(pos);
+
   }
 
   return pos;
@@ -559,27 +593,50 @@ long columnToPos(int column){
   {
   case 1:
     pos = COLUMN_1;
+    Serial.println("Column 1");
+    Serial.println(pos);
     break;
   case 2:
     pos = COLUMN_2;
+    
+    Serial.println("Column 2");
+    Serial.println(pos);
     break;
   case 3:
     pos = COLUMN_3;
+    
+    Serial.println("Column 3");
+    Serial.println(pos);
     break;
   case 4:
     pos = COLUMN_4;
+    
+    Serial.println("Column 4");
+    Serial.println(pos);
     break;
   case 5:
     pos = COLUMN_5;
+    
+    Serial.println("Column 5");
+    Serial.println(pos);
     break;
   case 6:
     pos = COLUMN_6;
+    
+    Serial.println("Column 6");
+    Serial.println(pos);
     break;
   case 7:
     pos = COLUMN_7;
+    
+    Serial.println("Column 7");
+    Serial.println(pos);
     break;
   case 8:
     pos = COLUMN_8;
+    
+    Serial.println("Column 8");
+    Serial.println(pos);
     break;
   default:
     break;
