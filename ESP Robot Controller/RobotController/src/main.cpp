@@ -28,10 +28,10 @@ Servo GRABBER_SERVO;
 #define DOOR_SERVO_PIN 13 //DONE
 
 #define GRABBER_SERVO_IDLE_ANGLE 170 
-#define GRABBER_SERVO_GRAB_ANGLE 10
+#define GRABBER_SERVO_GRAB_ANGLE 0
 
 #define DOOR_SERVO_OPEN_ANGLE 120
-#define DOOR_SERVO_CLOSED_ANGLE 50
+#define DOOR_SERVO_CLOSED_ANGLE 40
 
 // Speed
 #define CALIBRATION_SPEED 1500
@@ -41,21 +41,21 @@ Servo GRABBER_SERVO;
 // Distances for grabbing
 // These values are in steps, you can find the specific values using the other Script
 //
-long ROW_1 = -15600;
+long ROW_1 = -16000;
 long ROW_2 = -25600;
-long ROW_3 = -35200;
+long ROW_3 = -35500;
 
-long COLUMN_1 = -2100;
-long COLUMN_2 = -7500;
+long COLUMN_1 = -1000;
+long COLUMN_2 = -5800;
 long COLUMN_3 = -11850;
-long COLUMN_4 = -17200;
-long COLUMN_5 = -24100;
-long COLUMN_6 = -29600;
-long COLUMN_7 = -35100;
-long COLUMN_8 = -37000; //STAY AWAY THIS COULD BE WRONG
+long COLUMN_4 = -17000;
+long COLUMN_5 = -22300;
+long COLUMN_6 = -28300;
+long COLUMN_7 = -33500;
+long COLUMN_8 = -38500; //STAY AWAY THIS COULD BE WRONG
 
-long HOR_DROP_OFF_POSITION = -28000; // Horizontal position for drop-off
-long VERT_DROP_OFF_POSITION = -28000; // Vertical position for drop-off
+long HOR_DROP_OFF_POSITION = -33500; // Horizontal position for drop-off
+long VERT_DROP_OFF_POSITION = -35500; // Vertical position for drop-off
 
 AccelStepper HOR_Stepper(AccelStepper::DRIVER, HOR_STEP_PIN, HOR_DIR_PIN);
 AccelStepper VERT_Stepper(AccelStepper::DRIVER, VERT_STEP_PIN, VERT_DIR_PIN);
