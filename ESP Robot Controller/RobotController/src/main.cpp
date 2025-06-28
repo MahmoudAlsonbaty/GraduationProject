@@ -42,7 +42,7 @@ Servo GRABBER_SERVO;
 // These values are in steps, you can find the specific values using the other Script
 //
 long ROW_1 = -16000;
-long ROW_2 = -25600;
+long ROW_2 = -26000;
 long ROW_3 = -35500;
 
 long COLUMN_1 = -1000;
